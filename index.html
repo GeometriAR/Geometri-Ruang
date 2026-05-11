@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>WebAR Demo Tanpa Animasi</title>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
+  }
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #000;
+    }
+
+    #ar-container {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #loading {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 20;
+      color: white;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    #controls {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      z-index: 20;
+      padding: 0 12px;
+    }
+
+    button {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 10px;
+      background: white;
+      color: black;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    button:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="loading">
+    Memuat AR... Jika diminta, izinkan akses kamera.
+  </div>
+
+  <div id="ar-container"></div>
+
+  <div id="controls">
+    <button onclick="resetModel()">Reset Model</button>
+  </div>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { MindARThree } from "mindar-image-three";
+    import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+
+    const mindarThree = new MindARThree({
+      container: document.querySelector("#ar-container"),
+      imageTargetSrc: "./target.mind"
+    });
+
+    const { renderer, scene, camera } = mindarThree;
+
+    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+    scene.add(light);
+
+    const anchor = mindarThree.addAnchor(0);
+
+    let model;
+
+    const loader = new GLTFLoader();
+
+    loader.load(
+      "./model.glb",
+      (gltf) => {
+        model = gltf.scene;
+
+        model.scale.set(0.5, 0.5, 0.5);
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+
+        anchor.group.add(model);
+
+        document.querySelector("#loading").innerText =
+          "Model siap. Arahkan kamera ke marker.";
+      },
+      undefined,
+      (error) => {
+        console.error(error);
+        document.querySelector("#loading").innerText =
+          "Gagal memuat model.glb. Cek nama file dan lokasi file.";
+      }
+    );
+
+    window.resetModel = function() {
+      if (!model) return;
+
+      model.scale.set(0.5, 0.5, 0.5);
+      model.position.set(0, 0, 0);
+      model.rotation.set(0, 0, 0);
+    };
+
+    try {
+      await mindarThree.start();
+      document.querySelector("#loading").innerText =
+        "Arahkan kamera ke marker.";
+    } catch (error) {
+      console.error(error);
+      document.querySelector("#loading").innerText =
+        "Kamera gagal dibuka. Pastikan browser mengizinkan kamera dan halaman memakai HTTPS.";
+    }
+
+    renderer.setAnimationLoop(() => {
+      renderer.render(scene, camera);
+    });
+  </script>
+</body>
+</html>
