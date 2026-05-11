@@ -97,6 +97,14 @@
 
     const anchor = mindarThree.addAnchor(0);
 
+    anchor.onTargetFound = () => {
+      document.querySelector("#loading").innerText = "Marker terdeteksi. Model seharusnya muncul.";
+    };
+    
+    anchor.onTargetLost = () => {
+      document.querySelector("#loading").innerText = "Marker hilang. Arahkan kamera lagi ke marker.";
+    };
+
     let model;
 
     const loader = new GLTFLoader();
