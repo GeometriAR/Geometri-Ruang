@@ -76,9 +76,10 @@
 
   <div id="ar-container"></div>
 
-  <div id="controls">
-    <button onclick="resetModel()">Reset Model</button>
-  </div>
+ <div id="controls">
+  <button onclick="toggleRotation()">Putar / Stop</button>
+  <button onclick="resetModel()">Reset Model</button>
+</div>
 
   <script type="module">
     import * as THREE from "three";
@@ -98,14 +99,28 @@
     const anchor = mindarThree.addAnchor(0);
 
     anchor.onTargetFound = () => {
-      document.querySelector("#loading").innerText = "Marker terdeteksi. Model seharusnya muncul.";
+      isModelLocked = true;
+    
+      if (model) {
+        model.visible = true;
+      }
+    
+      document.querySelector("#loading").innerText =
+        "Marker terdeteksi. Model dikunci di layar.";
     };
     
     anchor.onTargetLost = () => {
-      document.querySelector("#loading").innerText = "Marker hilang. Arahkan kamera lagi ke marker.";
+      if (isModelLocked && model) {
+        model.visible = true;
+      }
+    
+      document.querySelector("#loading").innerText =
+        "Marker hilang, tapi model tetap ditampilkan.";
     };
 
     let model;
+    let isModelLocked = false;
+    let isRotating = true;
 
     const loader = new GLTFLoader();
 
@@ -117,7 +132,9 @@
         model.scale.set(0.5, 0.5, 0.5);
         model.position.set(0, 0, 0);
         model.rotation.set(0, 0, 0);
-
+        
+        model.visible = false;
+        
         anchor.group.add(model);
 
         document.querySelector("#loading").innerText =
@@ -139,6 +156,10 @@
       model.rotation.set(0, 0, 0);
     };
 
+    window.toggleRotation = function() {
+      isRotating = !isRotating;
+    };
+
     try {
       await mindarThree.start();
       document.querySelector("#loading").innerText =
@@ -150,8 +171,12 @@
     }
 
     renderer.setAnimationLoop(() => {
-      renderer.render(scene, camera);
-    });
+      if (model && model.visible && isRotating) {
+        model.rotation.y += 0.01;
+      }
+
+  renderer.render(scene, camera);
+});
   </script>
 </body>
 </html>
