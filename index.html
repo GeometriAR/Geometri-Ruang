@@ -2,17 +2,17 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>WebAR Demo Tanpa Animasi</title>
+  <title>WebAR Geometri Ruang</title>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
   }
-}
-</script>
+  </script>
 
   <style>
     body {
@@ -44,13 +44,32 @@
     #controls {
       position: fixed;
       bottom: 20px;
-      left: 0;
-      right: 0;
+      left: 16px;
+      right: 16px;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 14px;
+      border-radius: 14px;
+      color: white;
+    }
+
+    #controls label {
+      display: block;
+      text-align: center;
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    #rotationSlider {
+      width: 100%;
+    }
+
+    #buttonRow {
       display: flex;
       justify-content: center;
+      margin-top: 12px;
       gap: 10px;
-      z-index: 20;
-      padding: 0 12px;
     }
 
     button {
@@ -76,15 +95,31 @@
 
   <div id="ar-container"></div>
 
- <div id="controls">
-  <button onclick="toggleRotation()">Putar / Stop</button>
-  <button onclick="resetModel()">Reset Model</button>
-</div>
+  <div id="controls">
+    <label for="rotationSlider">Geser untuk memutar model</label>
+    <input
+      id="rotationSlider"
+      type="range"
+      min="0"
+      max="360"
+      value="0"
+      step="1"
+    />
+
+    <div id="buttonRow">
+      <button onclick="resetModel()">Reset Model</button>
+    </div>
+  </div>
 
   <script type="module">
     import * as THREE from "three";
     import { MindARThree } from "mindar-image-three";
     import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+
+    const loadingText = document.querySelector("#loading");
+    const rotationSlider = document.querySelector("#rotationSlider");
+
+    const MODEL_SCALE = 1.5;
 
     const mindarThree = new MindARThree({
       container: document.querySelector("#ar-container"),
@@ -98,29 +133,29 @@
 
     const anchor = mindarThree.addAnchor(0);
 
+    let model;
+    let markerHasBeenFound = false;
+
+    const persistentGroup = new THREE.Group();
+    persistentGroup.visible = false;
+    scene.add(persistentGroup);
+
     anchor.onTargetFound = () => {
-      isModelLocked = true;
-    
-      if (model) {
-        model.visible = true;
-      }
-    
-      document.querySelector("#loading").innerText =
-        "Marker terdeteksi. Model dikunci di layar.";
-    };
-    
-    anchor.onTargetLost = () => {
-      if (isModelLocked && model) {
-        model.visible = true;
-      }
-    
-      document.querySelector("#loading").innerText =
-        "Marker hilang, tapi model tetap ditampilkan.";
+      markerHasBeenFound = true;
+      persistentGroup.visible = true;
+
+      loadingText.innerText =
+        "Marker terdeteksi. Model akan tetap tampil walaupun marker keluar kamera.";
     };
 
-    let model;
-    let isModelLocked = false;
-    let isRotating = true;
+    anchor.onTargetLost = () => {
+      if (markerHasBeenFound) {
+        persistentGroup.visible = true;
+
+        loadingText.innerText =
+          "Marker hilang, tapi model tetap ditampilkan.";
+      }
+    };
 
     const loader = new GLTFLoader();
 
@@ -129,54 +164,74 @@
       (gltf) => {
         model = gltf.scene;
 
-        model.scale.set(0.5, 0.5, 0.5);
+        model.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
         model.position.set(0, 0, 0);
         model.rotation.set(0, 0, 0);
-        
-        model.visible = false;
-        
-        anchor.group.add(model);
 
-        document.querySelector("#loading").innerText =
+        model.visible = true;
+
+        persistentGroup.add(model);
+
+        loadingText.innerText =
           "Model siap. Arahkan kamera ke marker.";
       },
       undefined,
       (error) => {
         console.error(error);
-        document.querySelector("#loading").innerText =
+
+        loadingText.innerText =
           "Gagal memuat model.glb. Cek nama file dan lokasi file.";
       }
     );
 
+    rotationSlider.addEventListener("input", () => {
+      if (!model) return;
+
+      const degree = Number(rotationSlider.value);
+      const radian = THREE.MathUtils.degToRad(degree);
+
+      model.rotation.y = radian;
+    });
+
     window.resetModel = function() {
       if (!model) return;
 
-      model.scale.set(0.5, 0.5, 0.5);
+      model.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
       model.position.set(0, 0, 0);
       model.rotation.set(0, 0, 0);
-    };
 
-    window.toggleRotation = function() {
-      isRotating = !isRotating;
+      rotationSlider.value = 0;
     };
 
     try {
       await mindarThree.start();
-      document.querySelector("#loading").innerText =
+
+      loadingText.innerText =
         "Arahkan kamera ke marker.";
     } catch (error) {
       console.error(error);
-      document.querySelector("#loading").innerText =
+
+      loadingText.innerText =
         "Kamera gagal dibuka. Pastikan browser mengizinkan kamera dan halaman memakai HTTPS.";
     }
 
     renderer.setAnimationLoop(() => {
-      if (model && model.visible && isRotating) {
-        model.rotation.y += 0.01;
+      if (markerHasBeenFound && anchor.group.visible) {
+        anchor.group.updateMatrixWorld(true);
+
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+
+        anchor.group.matrixWorld.decompose(position, quaternion, scale);
+
+        persistentGroup.position.copy(position);
+        persistentGroup.quaternion.copy(quaternion);
+        persistentGroup.scale.copy(scale);
       }
 
-  renderer.render(scene, camera);
-});
+      renderer.render(scene, camera);
+    });
   </script>
 </body>
 </html>
